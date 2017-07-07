@@ -7,10 +7,11 @@ var Provider = ReactRedux.Provider;
 var _Promise;
 var _debug = false;
 var skipMerge = ['initialState', 'initialProps', 'isServer', 'store'];
-var storeKey = '__NEXT_REDUX_STORE__';
+var DEFAULT_KEY = '__NEXT_REDUX_STORE__';
 
-function initStore(makeStore, req, initialState) {
+function initStore(makeStore, req, initialState, config) {
     var isServer = !!req && typeof window === 'undefined';
+    var storeKey = config.storeKey;
 
     var options = { isServer: isServer };
     // Always make a new store if server
@@ -30,9 +31,19 @@ function initStore(makeStore, req, initialState) {
 
 }
 
-module.exports = function(createStore) {
-
+module.exports = function(createStore, wrappedConfig) {
+    var config = { storeKey: DEFAULT_KEY, debug: false };
     var connectArgs = [].slice.call(arguments).slice(1);
+
+    // Ensure backwards compatibility
+    if(typeof wrappedConfig === 'object'){
+        config = Object.assign(config, wrappedConfig);
+        connectArgs = [].slice.call(arguments).slice(2);
+    }
+
+    if(config.debug){
+        _debug = true;
+    }
 
     return function(Cmp) {
 
@@ -48,7 +59,7 @@ module.exports = function(createStore) {
             var hasStore = props.store && props.store.dispatch && props.store.getState;
             var store = hasStore
                 ? props.store
-                : initStore(createStore, {}, initialState); // client case, no store but has initialState
+                : initStore(createStore, {}, initialState, config); // client case, no store but has initialState
 
             if (_debug) console.log(Cmp.name, '- 4. WrappedCmp.render', (hasStore ? 'picked up existing one,' : 'created new store with'), 'initialState', initialState);
 
@@ -74,7 +85,7 @@ module.exports = function(createStore) {
                 if (_debug) console.log(Cmp.name, '- 1. WrappedCmp.getInitialProps wrapper', (ctx.req && ctx.req._store ? 'takes the req store' : 'creates the store'));
 
                 ctx.isServer = !!ctx.req;
-                ctx.store = initStore(createStore, ctx.req);
+                ctx.store = initStore(createStore, ctx.req, null /** initialState **/, config);
 
                 res(_Promise.all([
                     ctx.isServer,
