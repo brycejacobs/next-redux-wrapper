@@ -7,6 +7,7 @@ var Provider = ReactRedux.Provider;
 var _Promise;
 var _debug = false;
 var skipMerge = ['initialState', 'initialProps', 'isServer', 'store'];
+var connectArgs = ['mapStateToProps', 'mapDispatchToProps', 'mergedProps', 'connectOptions'];
 var DEFAULT_KEY = '__NEXT_REDUX_STORE__';
 
 function initStore(makeStore, req, initialState, config) {
@@ -33,12 +34,42 @@ function initStore(makeStore, req, initialState, config) {
 
 module.exports = function(createStore) {
     var config = { storeKey: DEFAULT_KEY, debug: false };
-    var connectArgs = [].slice.call(arguments).slice(1);
+    var connectArgs;
 
     // Ensure backwards compatibility, the config object should come last after connect arguments.
-    if(arguments.length === 6){
-        var wrappedConfig = arguments[5];
-        config = Object.assign(config, wrappedConfig);
+    if(typeof createStore === 'object'){
+        var wrappedConfig = createStore;
+
+        if(!({}).hasOwnProperty.call(wrappedConfig, 'createStore')){
+            throw new Error('Missing createStore function');
+        }
+        createStore = wrappedConfig.createStore;
+
+        if(({}).hasOwnProperty.call(wrappedConfig, 'debug')){
+            config.debug = wrappedConfig.debug;
+        }
+
+        if(({}).hasOwnProperty.call(wrappedConfig, 'storeKey')){
+          config.storeKey = wrappedConfig.storeKey;
+        }
+
+        connectArgs = [
+            ()=>({}), /** mapStateToProps **/
+            {}, /**mapDispatchToProps **/
+            null, /** mergeProps **/
+            {}, /** connectOptions **/
+        ];
+        var keys = Object.keys(wrappedConfig);
+        for(var i = 0; i < keys.length; i += 1){
+            var key = keys[i];
+
+            var argIdx = connectArgs.indexOf(key);
+            if(argIdx){
+                connectArgs[argIdx] = wrappedConfig[key];
+            }
+        }
+    } else{
+          connectArgs = [].slice.call(arguments).slice(1);
     }
 
     var debug = _debug || config.debug;
@@ -82,7 +113,7 @@ module.exports = function(createStore) {
                 if (debug) console.log(Cmp.name, '- 1. WrappedCmp.getInitialProps wrapper', (ctx.req && ctx.req._store ? 'takes the req store' : 'creates the store'));
 
                 ctx.isServer = !!ctx.req;
-                ctx.store = initStore(createStore, ctx.req, null /** initialState **/, config);
+                ctx.store = initStore(createStore, ctx.req, undefined /** initialState **/, config);
 
                 res(_Promise.all([
                     ctx.isServer,
