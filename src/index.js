@@ -69,7 +69,7 @@ module.exports = function(createStore) {
             }
         }
     } else{
-          connectArgs = [].slice.call(arguments).slice(1);
+        connectArgs = [].slice.call(arguments).slice(1);
     }
 
     var debug = _debug || config.debug;
